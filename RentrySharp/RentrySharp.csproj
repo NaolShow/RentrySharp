@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Description>Simple and straightforward library that helps to interact with https://rentry.co and/or https://rentry.org which is a markdown pastebin-like service that allows you to host texts with a personalized "url", a password to modify and delete them.</Description>
+    <Copyright>Copyright (c) 2022 NaolShow</Copyright>
+    <PackageProjectUrl>https://github.com/NaolShow/RentrySharp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/NaolShow/RentrySharp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>pastebin-service;rentry;rentryorg;rentryco</PackageTags>
+    <AssemblyVersion>1.0.0</AssemblyVersion>
+    <FileVersion>1.0.0</FileVersion>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <NoWarn />
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <NoWarn />
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AngleSharp" Version="0.17.1" />
+  </ItemGroup>
+
+</Project>
