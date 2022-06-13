@@ -6,7 +6,7 @@
 
 <div align="center">
   
-  <a href="https://github.com/NaolShow/RentrySharp/blob/main/LICENCE"><img alt="GitHub license" src="https://img.shields.io/github/license/NaolShow/RentrySharp?style=flat-square"></a>  
+  <a href="https://github.com/NaolShow/RentrySharp/blob/main/LICENSE"><img alt="GitHub license" src="https://img.shields.io/github/license/NaolShow/RentrySharp?style=flat-square"></a>  
   
 </div>
 <div align="center">
