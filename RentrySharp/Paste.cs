@@ -1,32 +1,97 @@
-﻿namespace RentrySharp {
+﻿using AngleSharp.Dom;
+using AngleSharp.Html.Dom;
+using AngleSharp.Html.Parser;
+using System.Text.RegularExpressions;
+
+namespace RentrySharp {
 
     /// <summary>
     /// Represents a <see cref="Paste"/> and lets you perform actions on it
     /// </summary>
     public class Paste {
 
-        private RentryClient rentryClient;
+        /// <summary>
+        /// Determines which base address we are going to use to perform requests to Rentry
+        /// </summary>
+        public static Uri RentryUri {
+#pragma warning disable CS8603
+            get => HttpClient.BaseAddress; set {
+                HttpClient.BaseAddress = value;
+                HttpClient.DefaultRequestHeaders.Referrer = value;
+            }
+#pragma warning restore CS8603
+        }
+
+        public static HttpClientHandler HttpClientHandler = new HttpClientHandler();
+        public static HttpClient HttpClient { get; } = new HttpClient(HttpClientHandler);
+
+        static Paste() {
+
+            // If the RentryUri hasn't been set by the user then assume we use rentry.co
+            if (RentryUri == null)
+                RentryUri = new Uri("https://rentry.co");
+
+        }
 
         /// <summary>
-        /// Returns the <see cref="Uri"/> that points towards the <see cref="Paste"/>
+        /// Returns the <see cref="Uri"/> that points towards the <see cref="Paste"/> (built with <see cref="RentryUri"/>)
         /// </summary>
-        public Uri Uri => new Uri(rentryClient.Uri, Id);
+        public Uri Uri => new Uri(RentryUri, Id);
 
         /// <summary>
-        /// Represent's the id of the <see cref="Paste"/>
+        /// Represents the id of the <see cref="Paste"/><br/>
+        /// Can be null before calling <see cref="Create(string)"/> to get a random id
         /// </summary>
-        public string Id { get; set; }
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when the <see cref="Id"/> doesn't have between 2 to 100 characters</exception>
+        /// <exception cref="ArgumentException">Thrown when the <see cref="Id"/> contains incorrect characters (must only contain latin letters, numbers, underscores or hyphens)</exception>
+        public string? Id {
+            get => id; set {
+
+                // If the id is too long or too short
+                if (value != null && (value.Length > 100 || value.Length < 2))
+                    throw new ArgumentOutOfRangeException(nameof(Id), $"{nameof(Id)} must have a length between 2 to 100 characters");
+                // If the id contains invalid caracters
+                if (value != null && (!Regex.IsMatch(value, @"^[A-Za-z0-9-_]+$", RegexOptions.Compiled)))
+                    throw new ArgumentException($"{nameof(Id)} must only contain latin letters, numbers, underscores or hyphens", nameof(Id));
+                id = value;
+
+            }
+        }
+        private string? id;
+
         /// <summary>
-        /// Represent's the password of the <see cref="Paste"/
+        /// Represents the password of the <see cref="Paste"/> (required in order to use <see cref="Edit(string?, string?, string?)"/> and <see cref="Delete"/>)<br/>
+        /// Can be null before calling <see cref="Create(string)"/> to get a random password
         /// </summary>
-        public string? Password { get; set; }
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when the <see cref="Password"/> doesn't have between 2 to 100 characters</exception>
+        public string? Password {
+            get => password; set {
+
+                // If the password is too long or too short
+                if (value != null && (value.Length > 100 || value.Length < 2))
+                    throw new ArgumentOutOfRangeException(nameof(Password), $"{nameof(Password)} must have between 2 to 100 characters");
+                password = value;
+
+            }
+        }
+        private string? password;
+
+        #region Constructors
+
+        /// <summary>
+        /// Creates an instance of <see cref="Paste"/> that will have a random <see cref="Id"/> and <see cref="Password"/> on the next <see cref="Create(string)"/> call
+        /// </summary>
+        public Paste() {
+
+        }
 
         /// <summary>
         /// Creates an instance of <see cref="Paste"/> to which you can just see it's content
         /// </summary>
         /// <param name="id">Id of the <see cref="Paste"/></param>
-        internal Paste(RentryClient rentryClient, string id) {
-            this.rentryClient = rentryClient;
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when the <see cref="Id"/> doesn't have between 2 to 100 characters</exception>
+        /// <exception cref="ArgumentException">Thrown when the <see cref="Id"/> contains incorrect characters (must only contain latin letters, numbers, underscores or hyphens)</exception>
+        public Paste(string id) {
             Id = id;
         }
 
@@ -35,7 +100,14 @@
         /// </summary>
         /// <param name="id">Id of the <see cref="Paste"/></param>
         /// <param name="password">Password of the <see cref="Paste"/> (everyone can see your paste, they just need the password to edit it)</param>
-        internal Paste(RentryClient rentryClient, string id, string password) : this(rentryClient, id) => Password = password;
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when the <see cref="Id"/> and/or the <see cref="Password"/> doesn't have between 2 to 100 characters</exception>
+        /// <exception cref="ArgumentException">Thrown when the <see cref="Id"/> contains incorrect characters (must only contain latin letters, numbers, underscores or hyphens)</exception>
+        public Paste(string id, string password) {
+            Id = id;
+            Password = password;
+        }
+
+        #endregion
 
         #region GetText methods
 
@@ -47,7 +119,7 @@
         public async Task<string> GetTextAsync() {
 
             // Get the response of the raw request
-            HttpResponseMessage response = await rentryClient.httpClient.GetAsync($"{Id}/raw");
+            HttpResponseMessage response = await HttpClient.GetAsync($"{Id}/raw");
 
             // If the paste doesn't exist anymore
             if (!response.IsSuccessStatusCode) throw new PasteNotFoundException();
@@ -61,9 +133,39 @@
 
         #region Create methods
 
-        /// <inheritdoc cref="RentryClient.Create(string?, string?, string)"/>
-        public async Task CreateAsync(string text) => await rentryClient.CreateAsync(Id, Password, text);
-        /// <inheritdoc cref="RentryClient.Create(string?, string?, string)"/>
+        /// <summary>
+        /// Creates the <see cref="Paste"/> to Rentry with the specified text
+        /// </summary>
+        /// <param name="text">Content of the <see cref="Paste"/></param>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when the <paramref name="text"/> is too long</exception>
+        /// <exception cref="PasteAlreadyExistException">Thrown when a <see cref="Paste"/> with the same <paramref name="id"/> already exist</exception>
+        /// <exception cref="Exception">Thrown when a non handled exception occurs from the service's side</exception>
+        public async Task CreateAsync(string? text) {
+
+            // If the text is too long
+            if (text != null && text.Length > 200000)
+                throw new ArgumentOutOfRangeException(nameof(text), $"{nameof(text)} mustn't exceed 200,000 characters");
+
+            // Send the paste create request and get the response
+            HttpResponseMessage response = await HttpClient.PostAsync(string.Empty, new FormUrlEncodedContent(new Dictionary<string, string?>() {
+                { "csrfmiddlewaretoken", GetCsrf() },
+                { "url", Id },
+                { "edit_code", Password },
+                { "text", text }
+            }));
+
+            // Handle the exceptions
+            IHtmlDocument document = await HandleExceptions(response);
+
+            // If either the id and/or the password are randomly generated
+            if (Id == null) Id = response.RequestMessage?.RequestUri?.Segments.LastOrDefault();
+            if (Password == null) Password = document.QuerySelector(".edit-code")?.TextContent;
+
+            // If after that one of them (or both) are null then throw
+            if (Id == null || Password == null) throw new Exception($"Cannot extract the paste {nameof(Id)} and/or {nameof(Password)} from the service's response");
+
+        }
+        /// <inheritdoc cref="CreateAsync(string)"/>
         public void Create(string text) => CreateAsync(text).GetAwaiter().GetResult();
 
         #endregion
@@ -72,24 +174,37 @@
         /// <summary>
         /// Edits the <see cref="Paste"/>'s <see cref="Id"/>, <see cref="Password"/> and/or Text
         /// </summary>
-        /// <exception cref="UnauthorizedAccessException">Thrown when you try to edit a <see cref="Paste"/> when you don't have it's <see cref="Password"/></exception>
+        /// <param name="id">New <see cref="Id"/> of the <see cref="Paste"/></param>
+        /// <param name="password">New <see cref="Password"/> of the <see cref="Paste"/></param>
+        /// <param name="text">New text of the <see cref="Paste"/></param>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when the one of the parameter is either too long or too short</exception>
+        /// <exception cref="ArgumentException">Thrown when the <see cref="Id"/> contains incorrect characters (must only contain latin letters, numbers, underscores or hyphens)</exception>
         /// <exception cref="PasteNotFoundException">Thrown when the <see cref="Paste"/> doesn't exist</exception>
-        /// <inheritdoc cref="RentryClient.Create(string?, string?, string)"/>
+        /// <exception cref="UnauthorizedAccessException">Thrown when you try to edit a <see cref="Paste"/> when you don't have it's <see cref="Password"/></exception>
+        /// <exception cref="PasteAlreadyExistException">Thrown when a <see cref="Paste"/> with the same <paramref name="id"/> already exist</exception>
         public async Task EditAsync(string? id = null, string? password = null, string? text = null) {
 
-            // Validate the paste informations (id/password and text length, id characters set...)
-            RentryClient.ValidatePaste(id, password, text);
+            // Save the current password
+            string? currentPassword = Password;
+
+            // If the id and/or the password should get changed, save them to validate them
+            if (id != null) Id = id;
+            if (password != null) Password = password;
+
+            // If the text is too long
+            if (text != null && text.Length > 200000)
+                throw new ArgumentOutOfRangeException(nameof(text), $"{nameof(text)} mustn't exceed 200,000 characters");
 
             // Send the request and get the response
-            HttpResponseMessage response = await rentryClient.httpClient.PostAsync($"{Id}/edit", new FormUrlEncodedContent(new Dictionary<string, string?>() {
+            HttpResponseMessage response = await HttpClient.PostAsync($"{Id}/edit", new FormUrlEncodedContent(new Dictionary<string, string?>() {
 
                 // Authenticate with the csrf token and the password
-                { "csrfmiddlewaretoken", rentryClient.GetCsrf() },
-                { "edit_code", Password },
+                { "csrfmiddlewaretoken", GetCsrf() },
+                { "edit_code", currentPassword },
 
                 // Give the (potentially) new id, password and text
-                { "new_url", id },
-                { "new_edit_code", password },
+                { "new_url", Id },
+                { "new_edit_code", Password },
                 // TODO: I could cache this value a certain amount of time instead of getting back each time?
                 // We must set back the text each time (even if we just change id/password) else the text will just be lost
                 { "text", text ?? await GetTextAsync() }
@@ -97,13 +212,7 @@
             }));
 
             // Handle the exceptions
-            await RentryClient.HandleExceptions(response);
-
-            // Save the id and password if they changed
-            if (id != null)
-                Id = id;
-            if (password != null)
-                Password = password;
+            await HandleExceptions(response);
 
         }
         /// <inheritdoc cref="EditAsync(string?, string?, string?)"/>
@@ -118,13 +227,14 @@
         /// </summary>
         /// <exception cref="UnauthorizedAccessException">Thrown when you try to delete a <see cref="Paste"/> when you don't have it's <see cref="Password"/></exception>
         /// <exception cref="PasteNotFoundException">Thrown when the <see cref="Paste"/> doesn't exist</exception>
+        /// <exception cref="Exception">Thrown when a non handled exception occurs from the service's side</exception>
         public async Task DeleteAsync() {
 
             // Send the request and get the response
-            HttpResponseMessage response = await rentryClient.httpClient.PostAsync($"{Id}/edit", new FormUrlEncodedContent(new Dictionary<string, string?>() {
+            HttpResponseMessage response = await HttpClient.PostAsync($"{Id}/edit", new FormUrlEncodedContent(new Dictionary<string, string?>() {
                 
                 // Authenticate with the csrf token and the password
-                { "csrfmiddlewaretoken", rentryClient.GetCsrf() },
+                { "csrfmiddlewaretoken", GetCsrf() },
                 { "edit_code", Password },
 
                 // Tell that we want to delete the paste
@@ -133,7 +243,7 @@
             }));
 
             // Handle the exceptions
-            await RentryClient.HandleExceptions(response);
+            await HandleExceptions(response);
 
         }
         /// <inheritdoc cref="DeleteAsync"/>
@@ -146,7 +256,7 @@
         /// Determines if the <see cref="Paste"/> exists
         /// </summary>
         /// <returns>True if the <see cref="Paste"/> exists</returns>
-        public async Task<bool> ExistsAsync() => (await rentryClient.httpClient.GetAsync($"{Id}/raw")).IsSuccessStatusCode;
+        public async Task<bool> ExistsAsync() => (await HttpClient.GetAsync($"{Id}/raw")).IsSuccessStatusCode;
         /// <inheritdoc cref="ExistsAsync"/>
         public bool Exists() => ExistsAsync().GetAwaiter().GetResult();
 
@@ -157,7 +267,44 @@
         /// Id=<see cref="Id"/>;Password=<see cref="Password"/>
         /// </summary>
         /// <returns>A string representation of the <see cref="Paste"/></returns>
-        public override string ToString() => $"Id={Id};Password={Password}";
+        public override string ToString() => $"{Uri};{Id};{Password}";
+
+        internal string GetCsrf() {
+
+            // Try to get the csrf token from the cookies container
+            string? value = HttpClientHandler.CookieContainer.GetAllCookies().FirstOrDefault(a => a.Name == "csrftoken")?.Value;
+
+            // If the cookie is in the container then return it directly
+            if (value != null) return value;
+
+            // Do a simple request to rentry to get the csrf cookie and then return it
+            HttpClient.GetAsync("").Wait();
+            return GetCsrf();
+
+        }
+
+        private static async Task<IHtmlDocument> HandleExceptions(HttpResponseMessage response) {
+
+            // If the paste cannot be found
+            if (!response.IsSuccessStatusCode) throw new PasteNotFoundException();
+
+            // Parse the response as an html document
+            IHtmlDocument document = new HtmlParser().ParseDocument(await response.Content.ReadAsStringAsync());
+
+            // If there is an error
+            IElement? element = document.QuerySelector(".errorlist");
+            if (element != null) {
+
+                // Check which error is it and throw the according exception
+                throw element.TextContent switch {
+                    "Invalid edit code." => new UnauthorizedAccessException(),
+                    "Entry with this url already exists." => new PasteAlreadyExistException(),
+                    _ => new Exception(element.TextContent),
+                };
+            }
+            return document;
+
+        }
 
     }
 
