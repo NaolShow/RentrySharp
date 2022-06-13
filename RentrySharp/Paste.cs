@@ -203,8 +203,8 @@ namespace RentrySharp {
                 { "edit_code", currentPassword },
 
                 // Give the (potentially) new id, password and text
-                { "new_url", Id },
-                { "new_edit_code", Password },
+                { "new_url", (id == null) ? null : Id },
+                { "new_edit_code", (password == null) ? null : Password },
                 // TODO: I could cache this value a certain amount of time instead of getting back each time?
                 // We must set back the text each time (even if we just change id/password) else the text will just be lost
                 { "text", text ?? await GetTextAsync() }
