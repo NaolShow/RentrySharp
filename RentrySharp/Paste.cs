@@ -290,7 +290,7 @@ namespace RentrySharp {
             if (!response.IsSuccessStatusCode) throw new PasteNotFoundException();
 
             // Parse the response as an html document
-            IHtmlDocument document = new HtmlParser().ParseDocument(await response.Content.ReadAsStringAsync());
+            IHtmlDocument document = await new HtmlParser().ParseDocumentAsync(await response.Content.ReadAsStringAsync());
 
             // If there is an error
             IElement? element = document.QuerySelector(".errorlist");
