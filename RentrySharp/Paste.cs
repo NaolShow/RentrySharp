@@ -159,7 +159,7 @@ namespace RentrySharp {
 
             // If either the id and/or the password are randomly generated
             if (Id == null) Id = response.RequestMessage?.RequestUri?.Segments.LastOrDefault();
-            if (Password == null) Password = document.QuerySelector(".edit-code")?.TextContent;
+            if (Password == null) Password = document.QuerySelector(".edit-code span")?.TextContent;
 
             // If after that one of them (or both) are null then throw
             if (Id == null || Password == null) throw new Exception($"Cannot extract the paste {nameof(Id)} and/or {nameof(Password)} from the service's response");
