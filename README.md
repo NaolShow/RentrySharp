@@ -106,10 +106,10 @@ Console.WriteLine($"Check the Paste and it's new password here: {rentryPaste.Uri
 Paste rentryPaste = new Paste("rentrysharp");
 
 // If the paste exists
-if (rentryPaste.Exists()) {
+if (rentryPaste.Exists) {
 
     // Write it's content
-    Console.WriteLine(rentryPaste.GetText());
+    Console.WriteLine(rentryPaste.Text);
 
 } else Console.WriteLine($"Sadly... the Paste '{rentryPaste.Id}' doesn't exist!");
 ```
