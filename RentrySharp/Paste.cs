@@ -264,10 +264,10 @@ namespace RentrySharp {
 
         /// <summary>
         /// Return's a string representation of the <see cref="Paste"/> that combines it's <see cref="Id"/> and <see cref="Password"/> in the format:<br/>
-        /// Id=<see cref="Id"/>;Password=<see cref="Password"/>
+        /// Uri=<see cref="Uri"/>;Id=<see cref="Id"/>;Password=<see cref="Password"/>
         /// </summary>
         /// <returns>A string representation of the <see cref="Paste"/></returns>
-        public override string ToString() => $"{Uri};{Id};{Password}";
+        public override string ToString() => $"Uri={Uri};Id={Id};Password{Password}";
 
         internal string GetCsrf() {
 
