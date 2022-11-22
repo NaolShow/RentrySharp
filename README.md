@@ -58,15 +58,15 @@ Paste(string id, string password);
 
 // - Actions (async and non async versions!)
 // Get the content of the Paste
-string GetText();
+string Text; or string GetTextAsync();
 // Create the Paste on Rentry
-void Create(string text);
+void Create(string text); or string CreateAsync(string text);
 // Edit the Paste on Rentry (let any value to null to keep the previous one)
-void Edit(string? id, string? password, string? text)
+void Edit(string? id, string? password, string? text) or void EditAsync(string? id, string? password, string? text)
 // Delete the Paste
-void Delete();
+void Delete(); or void DeleteAsync();
 // Determines if the Paste exists
-bool Exists();
+bool Exists; or bool ExistsAsync();
 
 ```
 (All the code is documented, so if you need more informations, just check it out!)

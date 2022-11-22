@@ -128,7 +128,8 @@ namespace RentrySharp {
 
         }
         /// <inheritdoc cref="GetTextAsync"/>
-        public string GetText() => GetTextAsync().GetAwaiter().GetResult();
+        public string Text => GetTextAsync().GetAwaiter().GetResult();
+
         #endregion
 
         #region Create methods
@@ -258,7 +259,7 @@ namespace RentrySharp {
         /// <returns>True if the <see cref="Paste"/> exists</returns>
         public async Task<bool> ExistsAsync() => (await HttpClient.GetAsync($"{Id}/raw")).IsSuccessStatusCode;
         /// <inheritdoc cref="ExistsAsync"/>
-        public bool Exists() => ExistsAsync().GetAwaiter().GetResult();
+        public bool Exists => ExistsAsync().GetAwaiter().GetResult();
 
         #endregion
 
