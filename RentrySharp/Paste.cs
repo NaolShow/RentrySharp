@@ -30,7 +30,7 @@ namespace RentrySharp {
 #pragma warning restore CS8603
         }
 
-        public static HttpClientHandler HttpClientHandler = new HttpClientHandler();
+        public static HttpClientHandler HttpClientHandler { get; } = new HttpClientHandler();
         public static HttpClient HttpClient { get; } = new HttpClient(HttpClientHandler);
 
         static Paste() {
@@ -159,7 +159,6 @@ namespace RentrySharp {
             HttpResponseMessage response = await HttpClient.PostAsync(string.Empty, new FormUrlEncodedContent(new Dictionary<string, string?>() {
                 { CsrfMiddlewareTokenKey, await GetCsrf() },
                 { UrlKey, Id },
-                { EditCodeKey, Password },
                 { TextKey, text }
             }));
 
@@ -167,8 +166,8 @@ namespace RentrySharp {
             IHtmlDocument document = await HandleExceptions(response);
 
             // If either the id and/or the password are randomly generated
-            if (Id == null) Id = response.RequestMessage?.RequestUri?.Segments.LastOrDefault();
-            if (Password == null) Password = document.QuerySelector(".edit-code span")?.TextContent;
+            Id ??= response.RequestMessage?.RequestUri?.Segments.LastOrDefault();
+            Password ??= document.QuerySelector(".edit-code span")?.TextContent;
 
             // If after that one of them (or both) are null then throw
             if (Id == null || Password == null) throw new Exception($"Cannot extract the paste {nameof(Id)} and/or {nameof(Password)} from the service's response");
