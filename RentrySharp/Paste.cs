@@ -10,6 +10,14 @@ namespace RentrySharp {
     /// </summary>
     public class Paste {
 
+        private const string CsrfMiddlewareTokenKey = "csrfmiddlewaretoken";
+        private const string UrlKey = "url";
+        private const string NewUrlKey = "new_url";
+        private const string EditCodeKey = "edit_code";
+        private const string NewEditCodeKey = "new_edit_code";
+        private const string TextKey = "text";
+        private const string DeleteKey = "delete";
+
         /// <summary>
         /// Determines which base address we are going to use to perform requests to Rentry
         /// </summary>
@@ -149,10 +157,10 @@ namespace RentrySharp {
 
             // Send the paste create request and get the response
             HttpResponseMessage response = await HttpClient.PostAsync(string.Empty, new FormUrlEncodedContent(new Dictionary<string, string?>() {
-                { "csrfmiddlewaretoken", await GetCsrf() },
-                { "url", Id },
-                { "edit_code", Password },
-                { "text", text }
+                { CsrfMiddlewareTokenKey, await GetCsrf() },
+                { UrlKey, Id },
+                { EditCodeKey, Password },
+                { TextKey, text }
             }));
 
             // Handle the exceptions
@@ -200,15 +208,15 @@ namespace RentrySharp {
             HttpResponseMessage response = await HttpClient.PostAsync($"{Id}/edit", new FormUrlEncodedContent(new Dictionary<string, string?>() {
 
                 // Authenticate with the csrf token and the password
-                { "csrfmiddlewaretoken", await GetCsrf() },
-                { "edit_code", currentPassword },
+                { CsrfMiddlewareTokenKey, await GetCsrf() },
+                { EditCodeKey, currentPassword },
 
                 // Give the (potentially) new id, password and text
-                { "new_url", (id == null) ? null : Id },
-                { "new_edit_code", (password == null) ? null : Password },
+                { NewUrlKey, (id == null) ? null : Id },
+                { NewEditCodeKey, (password == null) ? null : Password },
                 // TODO: I could cache this value a certain amount of time instead of getting back each time?
                 // We must set back the text each time (even if we just change id/password) else the text will just be lost
-                { "text", text ?? await GetTextAsync() }
+                { Text, text ?? await GetTextAsync() }
 
             }));
 
@@ -235,11 +243,11 @@ namespace RentrySharp {
             HttpResponseMessage response = await HttpClient.PostAsync($"{Id}/edit", new FormUrlEncodedContent(new Dictionary<string, string?>() {
                 
                 // Authenticate with the csrf token and the password
-                { "csrfmiddlewaretoken", await GetCsrf() },
-                { "edit_code", Password },
+                { CsrfMiddlewareTokenKey, await GetCsrf() },
+                { EditCodeKey, Password },
 
                 // Tell that we want to delete the paste
-                { "delete", "delete"}
+                { DeleteKey, DeleteKey }
 
             }));
 
@@ -284,6 +292,9 @@ namespace RentrySharp {
 
         }
 
+        private const string InvalidEditCode = "Invalid edit code.";
+        private const string InvalidAlreadyExist = "Entry with this url already exists.";
+
         private static async Task<IHtmlDocument> HandleExceptions(HttpResponseMessage response) {
 
             // If the paste cannot be found
@@ -298,8 +309,8 @@ namespace RentrySharp {
 
                 // Check which error is it and throw the according exception
                 throw element.TextContent switch {
-                    "Invalid edit code." => new UnauthorizedAccessException(),
-                    "Entry with this url already exists." => new PasteAlreadyExistException(),
+                    InvalidEditCode => new UnauthorizedAccessException(),
+                    InvalidAlreadyExist => new PasteAlreadyExistException(),
                     _ => new Exception(element.TextContent),
                 };
             }
