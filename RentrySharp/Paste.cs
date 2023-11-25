@@ -149,7 +149,7 @@ namespace RentrySharp {
 
             // Send the paste create request and get the response
             HttpResponseMessage response = await HttpClient.PostAsync(string.Empty, new FormUrlEncodedContent(new Dictionary<string, string?>() {
-                { "csrfmiddlewaretoken", GetCsrf() },
+                { "csrfmiddlewaretoken", await GetCsrf() },
                 { "url", Id },
                 { "edit_code", Password },
                 { "text", text }
@@ -200,7 +200,7 @@ namespace RentrySharp {
             HttpResponseMessage response = await HttpClient.PostAsync($"{Id}/edit", new FormUrlEncodedContent(new Dictionary<string, string?>() {
 
                 // Authenticate with the csrf token and the password
-                { "csrfmiddlewaretoken", GetCsrf() },
+                { "csrfmiddlewaretoken", await GetCsrf() },
                 { "edit_code", currentPassword },
 
                 // Give the (potentially) new id, password and text
@@ -235,7 +235,7 @@ namespace RentrySharp {
             HttpResponseMessage response = await HttpClient.PostAsync($"{Id}/edit", new FormUrlEncodedContent(new Dictionary<string, string?>() {
                 
                 // Authenticate with the csrf token and the password
-                { "csrfmiddlewaretoken", GetCsrf() },
+                { "csrfmiddlewaretoken", await GetCsrf() },
                 { "edit_code", Password },
 
                 // Tell that we want to delete the paste
@@ -270,7 +270,7 @@ namespace RentrySharp {
         /// <returns>A string representation of the <see cref="Paste"/></returns>
         public override string ToString() => $"Uri={Uri};Id={Id};Password{Password}";
 
-        internal string GetCsrf() {
+        internal async Task<string> GetCsrf() {
 
             // Try to get the csrf token from the cookies container
             string? value = HttpClientHandler.CookieContainer.GetAllCookies().FirstOrDefault(a => a.Name == "csrftoken")?.Value;
@@ -279,8 +279,8 @@ namespace RentrySharp {
             if (value != null) return value;
 
             // Do a simple request to rentry to get the csrf cookie and then return it
-            HttpClient.GetAsync("").Wait();
-            return GetCsrf();
+            await HttpClient.GetAsync(string.Empty);
+            return await GetCsrf();
 
         }
 
