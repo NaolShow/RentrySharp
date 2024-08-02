@@ -215,7 +215,7 @@ namespace RentrySharp {
                 { NewEditCodeKey, (password == null) ? null : Password },
                 // TODO: I could cache this value a certain amount of time instead of getting back each time?
                 // We must set back the text each time (even if we just change id/password) else the text will just be lost
-                { Text, text ?? await GetTextAsync() }
+                { TextKey, text ?? await GetTextAsync() }
 
             }));
 
