@@ -163,7 +163,7 @@ public class Paste {
             { UrlKey, Id },
             { TextKey, text }
         });
-        HttpResponseMessage response = await HttpClient.PostAsync(new Uri("/"), content).ConfigureAwait(false);
+        HttpResponseMessage response = await HttpClient.PostAsync((Uri?)null, content).ConfigureAwait(false);
 
         // Handle the exceptions
         IHtmlDocument document = await HandleExceptions(response).ConfigureAwait(false);
@@ -290,7 +290,7 @@ public class Paste {
         if (value != null) return value;
 
         // Do a simple request to rentry to get the csrf cookie and then return it
-        _ = await HttpClient.GetAsync(new Uri("/")).ConfigureAwait(false);
+        _ = await HttpClient.GetAsync((Uri?)null).ConfigureAwait(false);
         return await GetCsrf().ConfigureAwait(false);
 
     }
