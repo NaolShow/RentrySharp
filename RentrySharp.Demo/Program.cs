@@ -2,7 +2,7 @@
 
     public class Program {
 
-        private static void Main(string[] args) {
+        private static void Main() {
 
             // Create a paste with a random id/password
             Paste paste = new Paste();
@@ -19,7 +19,7 @@
 
             // Wait for the user to press enter
             Console.WriteLine("Press ENTER to delete the Paste");
-            Console.ReadLine();
+            _ = Console.ReadLine();
             paste.Delete();
 
         }

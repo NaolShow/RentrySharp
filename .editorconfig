@@ -1,0 +1,18 @@
+root = true
+
+[*]
+charset = utf-8
+trim_trailing_whitespace = true
+
+[*.cs]
+indent_style = space
+indent_size = 4
+tab_width = 4
+
+csharp_new_line_before_open_brace = none
+csharp_new_line_before_else = false
+csharp_new_line_before_catch = false
+csharp_new_line_before_finally = false
+
+dotnet_sort_system_directives_first = true
+dotnet_remove_unused_imports = true

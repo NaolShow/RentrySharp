@@ -1,7 +1,7 @@
-﻿using AngleSharp.Dom;
+﻿using System.Text.RegularExpressions;
+using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
 using AngleSharp.Html.Parser;
-using System.Text.RegularExpressions;
 
 namespace RentrySharp {
 
@@ -130,10 +130,7 @@ namespace RentrySharp {
             HttpResponseMessage response = await HttpClient.GetAsync($"{Id}/raw");
 
             // If the paste doesn't exist anymore
-            if (!response.IsSuccessStatusCode) throw new PasteNotFoundException();
-
-            return await response.Content.ReadAsStringAsync();
-
+            return !response.IsSuccessStatusCode ? throw new PasteNotFoundException() : await response.Content.ReadAsStringAsync();
         }
         /// <inheritdoc cref="GetTextAsync"/>
         public string Text => GetTextAsync().GetAwaiter().GetResult();
@@ -148,7 +145,7 @@ namespace RentrySharp {
         /// <param name="text">Content of the <see cref="Paste"/></param>
         /// <exception cref="ArgumentOutOfRangeException">Thrown when the <paramref name="text"/> is too long</exception>
         /// <exception cref="PasteAlreadyExistException">Thrown when a <see cref="Paste"/> with the same <paramref name="id"/> already exist</exception>
-        /// <exception cref="Exception">Thrown when a non handled exception occurs from the service's side</exception>
+        /// <exception cref="InvalidOperationException">Thrown when a non handled exception occurs from the service's side</exception>
         public async Task CreateAsync(string? text) {
 
             // If the text is too long
@@ -170,7 +167,8 @@ namespace RentrySharp {
             Password ??= document.QuerySelector(".edit-code span")?.TextContent;
 
             // If after that one of them (or both) are null then throw
-            if (Id == null || Password == null) throw new Exception($"Cannot extract the paste {nameof(Id)} and/or {nameof(Password)} from the service's response");
+            if (Id == null || Password == null)
+                throw new InvalidOperationException($"Cannot extract the paste {nameof(Id)} and/or {nameof(Password)} from the service's response");
 
         }
         /// <inheritdoc cref="CreateAsync(string)"/>
@@ -220,7 +218,7 @@ namespace RentrySharp {
             }));
 
             // Handle the exceptions
-            await HandleExceptions(response);
+            _ = await HandleExceptions(response);
 
         }
         /// <inheritdoc cref="EditAsync(string?, string?, string?)"/>
@@ -251,7 +249,7 @@ namespace RentrySharp {
             }));
 
             // Handle the exceptions
-            await HandleExceptions(response);
+            _ = await HandleExceptions(response);
 
         }
         /// <inheritdoc cref="DeleteAsync"/>
@@ -277,7 +275,7 @@ namespace RentrySharp {
         /// <returns>A string representation of the <see cref="Paste"/></returns>
         public override string ToString() => $"Uri={Uri};Id={Id};Password{Password}";
 
-        internal async Task<string> GetCsrf() {
+        internal static async Task<string> GetCsrf() {
 
             // Try to get the csrf token from the cookies container
             string? value = HttpClientHandler.CookieContainer.GetAllCookies().FirstOrDefault(a => a.Name == "csrftoken")?.Value;
@@ -286,7 +284,7 @@ namespace RentrySharp {
             if (value != null) return value;
 
             // Do a simple request to rentry to get the csrf cookie and then return it
-            await HttpClient.GetAsync(string.Empty);
+            _ = await HttpClient.GetAsync(string.Empty);
             return await GetCsrf();
 
         }
@@ -310,7 +308,7 @@ namespace RentrySharp {
                 throw element.TextContent switch {
                     InvalidEditCode => new UnauthorizedAccessException(),
                     InvalidAlreadyExist => new PasteAlreadyExistException(),
-                    _ => new Exception(element.TextContent),
+                    _ => new InvalidOperationException(element.TextContent),
                 };
             }
             return document;
