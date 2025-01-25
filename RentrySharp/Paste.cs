@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+using System.Text.RegularExpressions;
 using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
 using AngleSharp.Html.Parser;
@@ -30,7 +30,13 @@ public class Paste {
 #pragma warning restore CS8603
     }
 
+    /// <summary>
+    /// Internal <see cref="HttpClientHandler"/> used when interacting with Rentry
+    /// </summary>
     public static HttpClientHandler HttpClientHandler { get; } = new HttpClientHandler();
+    /// <summary>
+    /// Internal <see cref="HttpClient"/> used when interacting with Rentry
+    /// </summary>
     public static HttpClient HttpClient { get; } = new HttpClient(HttpClientHandler);
 
     static Paste() {
@@ -127,10 +133,10 @@ public class Paste {
     public async Task<string> GetTextAsync() {
 
         // Get the response of the raw request
-        HttpResponseMessage response = await HttpClient.GetAsync($"{Id}/raw");
+        HttpResponseMessage response = await HttpClient.GetAsync(new Uri($"{Id}/raw")).ConfigureAwait(false);
 
         // If the paste doesn't exist anymore
-        return !response.IsSuccessStatusCode ? throw new PasteNotFoundException() : await response.Content.ReadAsStringAsync();
+        return !response.IsSuccessStatusCode ? throw new PasteNotFoundException() : await response.Content.ReadAsStringAsync().ConfigureAwait(false);
     }
     /// <inheritdoc cref="GetTextAsync"/>
     public string Text => GetTextAsync().GetAwaiter().GetResult();
@@ -144,7 +150,6 @@ public class Paste {
     /// </summary>
     /// <param name="text">Content of the <see cref="Paste"/></param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the <paramref name="text"/> is too long</exception>
-    /// <exception cref="PasteAlreadyExistException">Thrown when a <see cref="Paste"/> with the same <paramref name="id"/> already exist</exception>
     /// <exception cref="InvalidOperationException">Thrown when a non handled exception occurs from the service's side</exception>
     public async Task CreateAsync(string? text) {
 
@@ -153,14 +158,15 @@ public class Paste {
             throw new ArgumentOutOfRangeException(nameof(text), $"{nameof(text)} mustn't exceed 200,000 characters");
 
         // Send the paste create request and get the response
-        HttpResponseMessage response = await HttpClient.PostAsync(string.Empty, new FormUrlEncodedContent(new Dictionary<string, string?>() {
-                { CsrfMiddlewareTokenKey, await GetCsrf() },
-                { UrlKey, Id },
-                { TextKey, text }
-            }));
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string?>() {
+            { CsrfMiddlewareTokenKey, await GetCsrf().ConfigureAwait(false) },
+            { UrlKey, Id },
+            { TextKey, text }
+        });
+        HttpResponseMessage response = await HttpClient.PostAsync(new Uri("/"), content).ConfigureAwait(false);
 
         // Handle the exceptions
-        IHtmlDocument document = await HandleExceptions(response);
+        IHtmlDocument document = await HandleExceptions(response).ConfigureAwait(false);
 
         // If either the id and/or the password are randomly generated
         Id ??= response.RequestMessage?.RequestUri?.Segments.LastOrDefault();
@@ -187,7 +193,7 @@ public class Paste {
     /// <exception cref="ArgumentException">Thrown when the <see cref="Id"/> contains incorrect characters (must only contain latin letters, numbers, underscores or hyphens)</exception>
     /// <exception cref="PasteNotFoundException">Thrown when the <see cref="Paste"/> doesn't exist</exception>
     /// <exception cref="UnauthorizedAccessException">Thrown when you try to edit a <see cref="Paste"/> when you don't have it's <see cref="Password"/></exception>
-    /// <exception cref="PasteAlreadyExistException">Thrown when a <see cref="Paste"/> with the same <paramref name="id"/> already exist</exception>
+    /// <exception cref="PasteAlreadyExistsException">Thrown when a <see cref="Paste"/> with the same <paramref name="id"/> already exist</exception>
     public async Task EditAsync(string? id = null, string? password = null, string? text = null) {
 
         // Save the current password
@@ -202,23 +208,24 @@ public class Paste {
             throw new ArgumentOutOfRangeException(nameof(text), $"{nameof(text)} mustn't exceed 200,000 characters");
 
         // Send the request and get the response
-        HttpResponseMessage response = await HttpClient.PostAsync($"{Id}/edit", new FormUrlEncodedContent(new Dictionary<string, string?>() {
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string?>() {
 
-                // Authenticate with the csrf token and the password
-                { CsrfMiddlewareTokenKey, await GetCsrf() },
-                { EditCodeKey, currentPassword },
+            // Authenticate with the csrf token and the password
+            { CsrfMiddlewareTokenKey, await GetCsrf().ConfigureAwait(false) },
+            { EditCodeKey, currentPassword },
 
-                // Give the (potentially) new id, password and text
-                { NewUrlKey, (id == null) ? null : Id },
-                { NewEditCodeKey, (password == null) ? null : Password },
-                // TODO: I could cache this value a certain amount of time instead of getting back each time?
-                // We must set back the text each time (even if we just change id/password) else the text will just be lost
-                { TextKey, text ?? await GetTextAsync() }
+            // Give the (potentially) new id, password and text
+            { NewUrlKey, (id == null) ? null : Id },
+            { NewEditCodeKey, (password == null) ? null : Password },
+            // TODO: I could cache this value a certain amount of time instead of getting back each time?
+            // We must set back the text each time (even if we just change id/password) else the text will just be lost
+            { TextKey, text ?? await GetTextAsync().ConfigureAwait(false) }
 
-            }));
+        });
+        HttpResponseMessage response = await HttpClient.PostAsync(new Uri($"{Id}/edit"), content).ConfigureAwait(false);
 
         // Handle the exceptions
-        _ = await HandleExceptions(response);
+        _ = await HandleExceptions(response).ConfigureAwait(false);
 
     }
     /// <inheritdoc cref="EditAsync(string?, string?, string?)"/>
@@ -237,19 +244,18 @@ public class Paste {
     public async Task DeleteAsync() {
 
         // Send the request and get the response
-        HttpResponseMessage response = await HttpClient.PostAsync($"{Id}/edit", new FormUrlEncodedContent(new Dictionary<string, string?>() {
-                
-                // Authenticate with the csrf token and the password
-                { CsrfMiddlewareTokenKey, await GetCsrf() },
-                { EditCodeKey, Password },
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string?>() {
+            // Authenticate with the csrf token and the password
+            { CsrfMiddlewareTokenKey, await GetCsrf().ConfigureAwait(false) },
+            { EditCodeKey, Password },
 
-                // Tell that we want to delete the paste
-                { DeleteKey, DeleteKey }
-
-            }));
+            // Tell that we want to delete the paste
+            { DeleteKey, DeleteKey }
+        });
+        HttpResponseMessage response = await HttpClient.PostAsync(new Uri($"{Id}/edit"), content).ConfigureAwait(false);
 
         // Handle the exceptions
-        _ = await HandleExceptions(response);
+        _ = await HandleExceptions(response).ConfigureAwait(false);
 
     }
     /// <inheritdoc cref="DeleteAsync"/>
@@ -262,7 +268,7 @@ public class Paste {
     /// Determines if the <see cref="Paste"/> exists
     /// </summary>
     /// <returns>True if the <see cref="Paste"/> exists</returns>
-    public async Task<bool> ExistsAsync() => (await HttpClient.GetAsync($"{Id}/raw")).IsSuccessStatusCode;
+    public async Task<bool> ExistsAsync() => (await HttpClient.GetAsync(new Uri($"{Id}/raw")).ConfigureAwait(false)).IsSuccessStatusCode;
     /// <inheritdoc cref="ExistsAsync"/>
     public bool Exists => ExistsAsync().GetAwaiter().GetResult();
 
@@ -284,8 +290,8 @@ public class Paste {
         if (value != null) return value;
 
         // Do a simple request to rentry to get the csrf cookie and then return it
-        _ = await HttpClient.GetAsync(string.Empty);
-        return await GetCsrf();
+        _ = await HttpClient.GetAsync(new Uri("/")).ConfigureAwait(false);
+        return await GetCsrf().ConfigureAwait(false);
 
     }
 
@@ -298,7 +304,8 @@ public class Paste {
         if (!response.IsSuccessStatusCode) throw new PasteNotFoundException();
 
         // Parse the response as an html document
-        IHtmlDocument document = await new HtmlParser().ParseDocumentAsync(await response.Content.ReadAsStringAsync());
+        string content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        IHtmlDocument document = await new HtmlParser().ParseDocumentAsync(content).ConfigureAwait(false);
 
         // If there is an error
         IElement? element = document.QuerySelector(".errorlist");
@@ -307,7 +314,7 @@ public class Paste {
             // Check which error is it and throw the according exception
             throw element.TextContent switch {
                 InvalidEditCode => new UnauthorizedAccessException(),
-                InvalidAlreadyExist => new PasteAlreadyExistException(),
+                InvalidAlreadyExist => new PasteAlreadyExistsException(),
                 _ => new InvalidOperationException(element.TextContent),
             };
         }

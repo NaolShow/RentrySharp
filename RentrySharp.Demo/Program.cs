@@ -1,4 +1,4 @@
-﻿namespace RentrySharp.Demo;
+namespace RentrySharp.Demo;
 
 public class Program {
 
